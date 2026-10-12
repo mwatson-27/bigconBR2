@@ -1,0 +1,502 @@
+   400→ ['school','ib'],['school','mpc'],['school','golf'],['ib','mpc'],['mpc','sisy'],['sisy','group'],['sisy','sat'],
+   401→ ['group','sat'],['group','press'],['group','news'],['sat','made'],['sat','asics'],['asics','mpc'],['asics','sisy'],
+   402→ ['toktimer','whistle'],['toktimer','brad'],
+   403→ /* people bridges */
+   404→ ['bullock','rock'],['rock','jt'],['jt','press'],['watson','golf'],['chalmers','herald']
+   405→];
+   406→const REMOVED_NODE_IDS=new Set(['notes','vault','unid1','unid2','real','spend','can','tv','ger','timeline','econ','debt']);
+   407→const CLEAN_EDGES=BASE_EDGES.filter(e=>!REMOVED_NODE_IDS.has(e[0])&&!REMOVED_NODE_IDS.has(e[1]));
+   408→let EDGES=CLEAN_EDGES.map(e=>e.slice());
+   409→const ADJ={};
+   410→function rebuildAdj(){
+   411→ Object.keys(ADJ).forEach(k=>delete ADJ[k]);
+   412→ EDGES.forEach(e=>{
+   413→  if(!NMAP[e[0]]||!NMAP[e[1]])return;
+   414→  (ADJ[e[0]]=ADJ[e[0]]||[]).push(e[1]);
+   415→  (ADJ[e[1]]=ADJ[e[1]]||[]).push(e[0]);
+   416→ });
+   417→}
+   418→rebuildAdj();
+   419→/* Quikstop is the only exhibit that physically moves each game — five neighbourhoods, same servo */
+   420→const QUIK_HOME={x:350,y:430,rot:2};
+   421→const QUIK_SLOTS=[
+   422→ {x:350,y:430,rot:2,links:['coal','watson','bond007','market','train'],label:'the original servo · inner west'},
+   423→ {x:1540,y:1210,rot:-2,links:['photo','bigshort','market','news'],label:'down by MarketPlace · the late shift'},
+   424→ {x:2060,y:680,rot:1,links:['forklift','petronas','whistle'],label:'the docks servo · petrol & crude'},
+   425→ {x:700,y:280,rot:-1,links:['rba','bullock','rock','westpac','cash'],label:'across from the Reserve Bank'},
+   426→ {x:1120,y:1410,rot:2,links:['made','sat','news','photo'],label:'the unexplained servo · next to MADE'}
+   427→];
+   428→function nodeBox(n){
+   429→ const sizes={photo:[140,92],wide:[170,100],bubble:[150,80],logo:[150,80],chart:[130,64],news:[150,84],made:[140,74],mpc:[164,96],sat:[170,90]};
+   430→ return sizes[n.shape]||[150,80];
+   431→}
+   432→function separateNodes(){
+   433→ const pad=16,minX=95,maxX=2305,minY=95,maxY=1455;
+   434→ for(let iter=0;iter<90;iter++){
+   435→  let moved=false;
+   436→  for(let i=0;i<NODES.length;i++){
+   437→   for(let j=i+1;j<NODES.length;j++){
+   438→    const A=NODES[i],B=NODES[j];
+   439→    const [aw,ah]=nodeBox(A),[bw,bh]=nodeBox(B);
+   440→    const dx=B.x-A.x,dy=B.y-A.y;
+   441→    const ox=(aw+bw)/2+pad-Math.abs(dx);
+   442→    const oy=(ah+bh)/2+pad-Math.abs(dy);
+   443→    if(ox>0&&oy>0){
+   444→     if(ox<oy){const s=dx===0?(i%2?1:-1):Math.sign(dx);const p=ox/2+.6;A.x-=s*p;B.x+=s*p}
+   445→     else{const s=dy===0?(i%2?1:-1):Math.sign(dy);const p=oy/2+.6;A.y-=s*p;B.y+=s*p}
+   446→     moved=true;
+   447→    }
+   448→   }
+   449→  }
+   450→  NODES.forEach(n=>{n.x=Math.max(minX,Math.min(maxX,n.x));n.y=Math.max(minY,Math.min(maxY,n.y))});
+   451→  if(!moved)break;
+   452→ }
+   453→}
+   454→function applyQuikSlot(slot){
+   455→ const q=NMAP.quik;if(!q||!slot)return;
+   456→ q.x=slot.x;q.y=slot.y;q.rot=slot.rot;
+   457→ EDGES=BASE_EDGES.filter(e=>e[0]!=='quik'&&e[1]!=='quik').concat((slot.links||[]).map(id=>['quik',id]));
+   458→ rebuildAdj();
+   459→ separateNodes();
+   460→}
+   461→const TYPE_COLORS={BANK:'#a87511',COMMODITY:'#c05621',MEDIA:'#b5308c',CORPORATE:'#1f6f8b',REGULATOR:'#5c6b73',CHART:'#2e8b57',WILD:'#6b4fa0'};
+   462→const PCOLORS=['#f5c542','#55c1ff','#e19bff','#7fe08d','#ff5e9c','#ffffff','#00e5c0','#ffa94d'];
+   463→const MAXPLAYERS=8;
+   464→const CHARURL='https://raw.githubusercontent.com/waxmotson/bigcon/main/characters/';
+   465→const CHARS=[
+   466→ {id:'markwatson',name:'Mark Watson',file:'markwatson.png'},
+   467→ {id:'tomkins',name:'Tomkins',file:'tomkins.png'},
+   468→ {id:'jimchalmers',name:'Jim Chalmers',file:'jimchalmers.png'},
+   469→ {id:'bessock',name:'Bessock',file:'bessock.png'},
+   470→ {id:'calvinathanasius',name:'Calvin Athanasius',file:'calvinathanasius.png'},
+   471→ {id:'denialswan',name:'Denial Swan',file:'denialswan.png'},
+   472→ {id:'japsnchen',name:'Japsn Chen',file:'japsnchen.png'},
+   473→ {id:'thousandyardwax',name:'Thousand Yard Wax',file:'thousandyardwax.png'}
+   474→];
+   475→function charMeta(id){return CHARS.find(c=>c.id===id)||null}
+   476→function charSrc(id){const c=charMeta(id);return c?CHARURL+c.file:''}
+   477→/* ================= THE MARKET MOOD — set by every event, felt by everyone ================= */
+   478→const MOODS={
+   479→ CALM:{label:'MARKET: CALM',color:'#8fbf7f',tint:'rgba(70,130,70,0.045)',rate:2,desc:'no modifiers · 1 🛈 = $2'},
+   480→ BOOM:{label:'MARKET: BOOM',color:'#f5c542',tint:'rgba(200,160,40,0.075)',rate:2,desc:'COMMODITIES +$1/turn · 1 🛈 = $2'},
+   481→ PANIC:{label:'MARKET: PANIC',color:'#ff6b5e',tint:'rgba(170,30,20,0.10)',rate:4,desc:'BANKS −$1/turn · 1 🛈 = $4'},
+   482→ FRENZY:{label:'MEDIA FRENZY',color:'#e19bff',tint:'rgba(150,60,170,0.075)',rate:3,desc:'MEDIA +$1/turn · 1 🛈 = $3'}
+   483→};
+   484→/* sparklines drawn INSIDE the 130x64 chart card (card spans x -65..65, y -32..32;
+   485→   line band: x -50..50, y 0..14) */
+   486→const SPK={
+   487→up:'-50,13 -34,11 -18,12 -2,7 14,9 30,3 42,5 50,1',
+   488→down:'-50,2 -34,4 -18,3 -2,8 14,7 30,11 42,10 50,13',
+   489→step:'-50,13 -30,13 -30,9 -8,9 -8,5 16,5 16,2 50,2',
+   490→spike:'-50,13.5 -34,13 -18,11.5 -2,12 14,7 30,3 42,0.5 50,0',
+   491→vola:'-50,7 -38,12 -26,3 -14,10 -2,5 10,12 22,2 34,9 46,1 50,5',
+   492→flat:'-50,9 -25,8.5 0,9 25,8.5 50,8'};
+   493→
+   494→/* ================= MARKET EVENT DECK (25 cards) — every card moves the mood ================= */
+   495→const CARDS=[
+   496→{id:'oilspike',icon:'🛢️',title:'OIL SPIKES — WTI +12%',text:'Crude goes vertical. The pit pays out, the tankers get rich, and everyone pays at the pump.',
+   497→ run(){setMood('BOOM','WTI +12% — crude goes vertical');[['oil',6,'crude windfall'],['oilgraph',2,'the graph called it'],['tanker',3,'tankers rechartered at panic rates'],['petronas',3,'the national oil company'],['barrels',2,'the barrel yard']].forEach(a=>{const o=S.owner[a[0]];if(o!=null)gain(o,a[1],a[2])});const q=S.owner.quik;S.players.forEach((pl,i)=>{if(i===q)return;if(q==null)payVoid(i,1,'fuel costs — nobody minds the till');else payTo(i,1,q,'fuel costs → QuikStop')});}},
+   498→{id:'coalrush',icon:'🚃',title:'COAL RUSH',text:'Demand for black rock goes nuclear. Everything on rails and water makes money.',
+   499→ run(){setMood('BOOM','coal rush — everything on rails makes money');[['port',4,'the docks work overtime'],['train',2,'the train runs all night'],['tanker',3,'freight rates through the roof'],['coal',2,'COAL Corp books all of it'],['forklift',1,'pallets upon pallets'],['bhp',3,'the Big Australian books the tonnes']].forEach(a=>{const o=S.owner[a[0]];if(o!=null)gain(o,a[1],a[2])});}},
+   500→{id:'rates',icon:'🏛️',title:'RBA CASH-RATE DECISION',text:'Governor Bullock leans into the microphone. Money gets expensive — for everyone but the insiders.',
+   501→ run(){setMood('CALM','the RBA decides — the market holds its breath, then exhales');const r=S.owner.rba,b=S.owner.bullock;S.players.forEach((pl,i)=>{if(i===r||i===b)return;payFee(i,2,'the cost of money')});if(r!=null)log('🏛️ '+pname(r)+' set the rate — pays nothing.');if(b!=null)log('👩‍💼 The Governor takes '+pname(b)+'’s calls — pays nothing.');const c=S.owner.cash;if(c!=null)gain(c,2,'you literally set it');const j=S.owner.jim;if(j!=null)gain(j,2,'the headline sells papers');const be=S.owner.bess;if(be!=null)gain(be,2,'“BIG BESSENT” reacts live');const hs=S.owner.herald;if(hs!=null)gain(hs,2,'THE JIM REAPER reprints the decision');}},
+   502→{id:'bondrevolt',icon:'💥',title:'BONDMAGEDDON',text:'“Government Bond: the collapse of the world’s safest investment.” Yields go vertical from Tokyo to Toronto.',
+   503→ run(){setMood('PANIC','“the collapse of the world’s safest investment”');const bd=S.owner.bond;S.players.forEach((pl,i)=>{const banks=NODES.filter(n=>n.type==='BANK'&&S.owner[n.id]===i).length;if(!banks)return;const amt=banks*2;if(bd!=null)payTo(i,amt,bd,'the revolt eats '+banks+' bank position'+(banks>1?'s':'')+' → The Bond Desk');else payVoid(i,amt,'the revolt eats the banking book')});COUNTRY.forEach(c=>{const o=S.owner[c];if(o!=null)gain(o,c==='japan'?3:1,NMAP[c].name.join(' ')+' pays its reader')});const t=S.owner.tenyear;if(t!=null)gain(t,2,'the master chart was right');const be=S.owner.bess;if(be!=null)gain(be,2,'Big Bessent called it on air');const br=S.owner.brad;if(br!=null)gain(br,2,'he had it explained in the movie');const bs=S.owner.bigshort;if(bs!=null)gain(bs,3,'the cinema saw it coming');const lk=S.owner.leak;if(lk!=null)gain(lk,2,'the leak was first with it');}},
+   504→{id:'ceophoto',icon:'📸',title:'CEO PHOTO LEAKS — COAL CORP',text:'Mark Watson, photographed exactly where he should not have been. Someone is holding matches.',
+   505→ run(){setMood('FRENZY','CEO photo leaks — the front pages feed');const c=S.owner.coal;if(c==null){log('🚂 COAL CORP HQ is unowned — Watson denies everything to an empty room.');return}if(S.owner.watson===c){log('🕴️ Watson fronts the cameras himself — the photos are dismissed as “old”. No Cortisol.');return}if(S.owner.port===c)gain(c,5,'shipped the coal before the news broke');if(S.owner.press===c||S.owner.fox===c){gain(c,3,'the press room spins it beautifully');return}addCortisol(c,3,'the photos run on every front page','event');}},
+   506→{id:'tariffs',icon:'🦅',title:'TRUMP TWEETS TARIFFS',text:'ALL CAPS. Exclamation points. Global markets do a synchronized swan dive.',
+   507→ async run(){setMood('PANIC','TARIFFS! ALL CAPS! markets swan-dive');const t=S.owner.trump;let chain;const opts=[{label:'🛢️ OIL chain +$3 each',v:'oil'},{label:'🚂 COAL chain +$3 each',v:'coal'}];
+   508→ if(t!=null)chain=await askPlayer(t,{title:'TRUMP TWEETS TARIFFS',body:'You own THE DONALD — which chain gets the windfall?',options:opts,def:Math.random()<.5?'oil':'coal'});
+   509→ else chain=Math.random()<.5?'oil':'coal';
+   510→ const list=chain==='oil'?['oil','oilgraph','barrels','tanker','petronas']:['coal','train','port','watson','forklift','bhp'];
+   511→ const winners=new Set();list.forEach(id=>{const o=S.owner[id];if(o!=null){gain(o,3,chain+' windfall via '+NMAP[id].name[0]);winners.add(o)}});
+   512→ const u=S.owner.us;if(u!=null){gain(u,2,'the safe-haven bid');winners.add(u)}
+   513→ S.players.forEach((pl,i)=>{if(!winners.has(i))payVoid(i,1,'the tariff bill')});
+   514→ if(t!=null)log('🦅 The tweet did numbers.');}},
+   515→{id:'besspeak',icon:'🎤',title:'BIG BESSENT SPEAKS',text:'The Treasury clears its throat. Bond desks straighten their ties. Markets listen.',
+   516→ run(){setMood('CALM','Big Bessent soothes the desk');const b=S.owner.bessent;if(b!=null)gain(b,3,'the big man speaks');const d=S.owner.bond;if(d!=null)gain(d,2,'the desk frontran the speech');const t=S.owner.tenyear;if(t!=null)gain(t,2,'yields obey');const br=S.owner.brad;if(br!=null)gain(br,2,'he had it explained to him');}},
+   517→{id:'budget',icon:'📰',title:'THE JIM DELIVERS THE BUDGET',text:'“The Jim…” reads numbers to a sleepy chamber. Somebody, somewhere, is counting.',
+   518→ run(){setMood('CALM','the budget is delivered — mostly numbers');const s=S.owner.spend;if(s!=null)gain(s,3,'the spending graphic glows');const ch=S.owner.chalmers;if(ch!=null)gain(ch,2,'the Treasurer delivers');const j=S.owner.jim;if(j!=null)gain(j,2,'the exclusive pays');const hs=S.owner.herald;if(hs!=null)gain(hs,2,'THE JIM REAPER special edition');const a=S.owner.albo;if(a!=null)gain(a,1,'the PM signs it');S.players.forEach((pl,i)=>{if(i!==s&&i!==ch&&i!==j&&i!==a&&i!==hs)payVoid(i,1,'return to sender (taxes)')});}},
+   519→{id:'mpcfinals',icon:'🏆',title:'MONETARY POLICY COMPETITION FINALS',text:'The RBA’s big night. Schools. Charts. Trophies. JTPortal is rumoured to be judging.',
+   520→ run(){setMood('BOOM','monetary policy finals — the schools deliver');const m=S.owner.mpc;if(m!=null){gain(m,4,'the champions’ purse');giveIntel(m,1,'the finalists’ data')}const sc=S.owner.school;if(sc!=null)gain(sc,2,'the school places');const ib=S.owner.ib;if(ib!=null)gain(ib,2,'the IB cohort delivers');const jt=S.owner.jt;if(jt!=null)giveIntel(jt,1,'JTPortal judged the submissions');}},
+   521→{id:'sisyroll',icon:'🪨',title:'THE BOULDER ROLLS BACK DOWN',text:'Empires, portfolios, homework — everything heavy slides. The biggest players feel it most.',
+   522→ run(){setMood('CALM','the boulder rolls back down, as ever');const counts=S.players.map((pl,i)=>NODES.filter(n=>S.owner[n.id]===i).length);const mx=Math.max(...counts);S.players.forEach((pl,i)=>{if(counts[i]===mx&&S.owner.sisy!==i)payVoid(i,2,'the boulder finds the biggest stack')});const s=S.owner.sisy;if(s!=null)log('🪨 '+pname(s)+' is used to this — immune.');}},
+   523→{id:'goldrush',icon:'🪙',title:'GOLD RUSH',text:'The gold-coloured coins gleam. Paper money suddenly looks like a rumor.',
+   524→ run(){setMood('BOOM','gold gleams — paper looks like a rumor');const g=S.owner.gold;if(g!=null)gain(g,5,'everything gleams');const n=S.owner.notes;if(n!=null)gain(n,2,'collectors pay up');const bh=S.owner.bhp;if(bh!=null)gain(bh,3,'ore prices sneak up with the gold');S.players.forEach((pl,i)=>{if(i!==g&&i!==n&&i!==bh)payVoid(i,1,'inflation bites')});}},
+   525→{id:'rockcooks',icon:'💪',title:'THE ROCK COOKS',text:'A gym, a blender, a set of books that needed cooking. The smell is unmistakable.',
+   526→ run(){setMood('CALM','the books are cooked; the gym is calm');const r=S.owner.rock;if(r!=null){gain(r,3,'ladder of opportunity');addCortisol(r,-1,'the calm after the cook')}else log('💪 Nobody owns The Rock. The books stay raw.');}},
+   527→{id:'davos',icon:'🏔️',title:'DAVOS — THE CONFERENCE STAGE',text:'Lanyards, panels, fondue. Global networks tighten over canapés.',
+   528→ run(){setMood('FRENZY','Davos — lanyards, panels, fondue');const w=S.owner.wef;if(w!=null)gain(w,3,'the big table pays out');const b=S.owner.bessent;if(b!=null)gain(b,2,'a familiar face on the panel');Object.keys(S.bugs).forEach(nid=>{const o=S.bugs[nid];S.players[o].money+=1;log('🏔️ Global skim from '+NMAP[nid].name.join(' ')+': '+pname(o)+' +$1.')});}},
+   529→{id:'quikrob',icon:'🎭',title:'QUIKSTOP ROBBERY',text:'A ski mask, a shopping bag, an empty register. The tapes are… missing.',
+   530→ run(){setMood('CALM','a ski mask, a shopping bag, an empty register');const q=S.owner.quik;if(q==null){S.players.forEach((pl,i)=>payVoid(i,1,'nobody was watching the till'));return}payVoid(q,2,'gone, just gone');const b=S.owner.bond007;if(b!=null)gain(b,2,'he was there in disguise (allegedly)');}},
+   531→{id:'ibexams',icon:'📝',title:'IB EXAMS',text:'Papers, calculators, despair. The Diploma Programme does not grade on charisma.',
+   532→ run(){setMood('CALM','IB exams — despair, indexed');const ib=S.owner.ib;if(ib!=null)giveIntel(ib,2,'HL Economics pays off');const sc=S.owner.school;if(sc!=null)giveIntel(sc,1,'the cohort crammed');S.players.forEach((pl,i)=>{const charts=NODES.filter(n=>n.type==='CHART'&&S.owner[n.id]===i).length;if(charts===0&&pl.intel>0){pl.intel-=1;fxAt(i,'🛈−1','#55c1ff');log('📝 '+pname(i)+' didn’t do the reading: −1 Intel.')}});}},
+   533→{id:'profit',icon:'⛽',title:'PROFIT WARNING… FOR OTHERS',text:'Markets wobble, people stress-eat. Quikstop does just fine.',
+   534→ run(){setMood('CALM','profit warning… for others');const q=S.owner.quik;if(q!=null)gain(q,4,'snack economics');else log('⛽ Quikstop is unowned — the profits drift away.');}},
+   535→{id:'quiet',icon:'🌙',title:'A QUIET QUARTER',text:'No tweets, no leaks, no rate decisions. Everyone quietly pockets a little extra.',
+   536→ run(){setMood('CALM','a quiet quarter — no tweets, no leaks');S.players.forEach((pl,i)=>gain(i,2,'a quiet quarter'));}},
+   537→{id:'snoop',icon:'🔍',title:'REGULATORS SNOOP AROUND',text:'Somebody asked one question too many. The sweatiest players get a second look.',
+   538→ run(){setMood('CALM','regulators asking one question too many');const mx=Math.max(0,...S.players.map(pl=>pl.cortisol));if(mx<=0){log('🔍 Nobody has any Cortisol — the regulators go for coffee.');return}S.players.forEach((pl,i)=>{if(pl.cortisol===mx)addCortisol(i,1,'regulators circling','event')});}},
+   539→{id:'tip',icon:'✉️',title:'ANONYMOUS TIP',text:'A brown envelope with no return address. Everyone learns something.',
+   540→ run(){setMood('CALM','a brown envelope, no return address');S.players.forEach((pl,i)=>giveIntel(i,1,'the envelope'));log('✉️ Every player gains 1 Intel.');}},
+   541→{id:'frenzy',icon:'🗣️',title:'MEDIA FRENZY',text:'“Quite frankly…” The press needs a villain before deadline. Whoever owns the narrative picks one.',
+   542→ async run(){setMood('FRENZY','the press needs a villain before deadline');const pi=S.owner.press;if(pi==null){log('🗣️ The Press Room is unowned — the story dies in committee.');return}const rivals=S.players.map((pl,i)=>i).filter(i=>i!==pi);const opts=rivals.map(i=>({label:S.players[i].name+' +2 🔥',v:i}));opts.push({label:'Sit on the story',v:-1});const v=await askPlayer(pi,{title:'MEDIA FRENZY',body:'You control the PRESS ROOM — torch which rival?',options:opts,def:-1});if(v>=0)addCortisol(v,2,'front-page frenzy','event');}},
+   543→{id:'crackdown',icon:'🚨',title:'MONOPOLY ALERT',text:'The regulator finally does something. The hottest player pays for it.',
+   544→ run(){setMood('PANIC','crackdown — the regulator finally does something');const mx=Math.max(0,...S.players.map(pl=>pl.cortisol));if(mx<=0){log('🚨 Nobody is hot — the crackdown hits an empty office.');return}S.players.forEach((pl,i)=>{if(pl.cortisol===mx)payFee(i,4,'crackdown fine')});const bs=S.owner.bigshort;if(bs!=null)gain(bs,3,'the cinema called it');}},
+   545→{id:'tapes',icon:'🗑️',title:'THE TAPES GO MISSING',text:'A shredder runs all night. What you knew, you no longer know — unless you kept copies.',
+   546→ run(){setMood('CALM','the tapes go missing — a shredder runs all night');S.players.forEach((pl,i)=>{if(S.owner.whistle===i){giveIntel(i,2,'the Whistleblower kept copies')}else if(S.owner.jt===i){giveIntel(i,2,'JTPortal keeps backups')}else if(pl.intel>0){pl.intel-=1;fxAt(i,'🛈−1','#55c1ff');log('🗑️ '+pname(i)+' loses 1 Intel — the tapes are gone.')}});}},
+   547→{id:'bigscreen',icon:'🎬',title:'THE BIG SHORT SCREENING',text:'Brad Pitt explains subprime with a Jenga tower. Everyone watches. Nobody learns.',
+   548→ run(){setMood('FRENZY','The Big Short screens to a packed house');const bs=S.owner.bigshort;if(bs!=null)gain(bs,3,'packed house');const br=S.owner.brad;if(br!=null)gain(br,2,'he was right there on screen');const h=S.owner.hedge;if(h!=null)gain(h,2,'somebody was short the whole time');}},
+   549→{id:'madeout',icon:'🟣',title:'MADE PAYS OUT… PROBABLY',text:'The purple graphic does… something. Money appears. Explanations do not.',
+   550→ run(){setMood(S.mood,'MADE does… something');if(Math.random()<1/3){madePay();log('🟣 MADE has paid out. Nobody knows why. NOBODY.')}else log('🟣 MADE remains unexplained. Again.');}}
+   551→];
+   552→const CARDBYID={};CARDS.forEach(c=>CARDBYID[c.id]=c);
+   553→
+   554→/* ================= STATE, NET & HELPERS ================= */
+   555→let S=null;
+   556→const GOAL_MIN=20,GOAL_MAX=999,GOAL_DEF=100;
+   557→const Net={role:null,peer:null,conn:null,conns:[],roster:[],myIdx:0,myName:'',playerId:null,roomCode:null,roomLabel:null,lobbyChat:[],lobbyPlayers:[],started:false,begun:false,lock:false,lockTimer:null,pendingPrompts:new Map(),acks:null,promptSeq:0,evSeq:0,autoT:null,goal:GOAL_DEF,hbTimer:null,lastSeen:0};
+   558→function clampGoal(v){const n=Math.round(Number(v)||0);if(!n)return GOAL_DEF;return Math.max(GOAL_MIN,Math.min(GOAL_MAX,n))}
+   559→let fxSeq=0;
+   560→const shownFx=new Set();
+   561→function pname(i){return S.players[i].name}
+   562→function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+   563→function shuffle(a){const r=a.slice();for(let i=r.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=r[i];r[i]=r[j];r[j]=t}return r}
+   564→function log(t){S.log.push(t);S.logN=(S.logN|0)+1;if(S.log.length>250)S.log.shift()}
+   565→let toastTimer=null;
+   566→function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400)}
+   567→function modal(o){return new Promise(res=>{
+   568→ const ov=document.createElement('div');ov.className='overlay';
+   569→ const card=document.createElement('div');card.className='mcard';
+   570→ const t=document.createElement('div');t.className='mtitle';t.textContent=o.title||'';
+   571→ const b=document.createElement('div');b.className='mbody';
+   572→ if(o.html)b.innerHTML=o.html;
+   573→ if(o.body){const p=document.createElement('p');p.textContent=o.body;b.appendChild(p)}
+   574→ const opts=document.createElement('div');opts.className='mopts';
+   575→ (o.options||[{label:'Continue',v:1}]).forEach(op=>{const bt=document.createElement('button');bt.textContent=op.label;bt.onclick=()=>{document.body.removeChild(ov);res(op.v)};opts.appendChild(bt)});
+   576→ card.appendChild(t);card.appendChild(b);card.appendChild(opts);ov.appendChild(card);document.body.appendChild(ov);
+   577→})}
+   578→function monopolyAlertFace(sub){ return '<div class="eventcard"><div style="display:flex;gap:16px;justify-content:center;align-items:center;margin:10px 0 8px"><img src="./static/the rock.gif" alt="The Rock" style="width:120px;height:120px;object-fit:cover;border:2px solid #168388;background:#000"><img src="./static/accc.png" alt="ACCC" style="width:120px;height:120px;object-fit:contain;border:2px solid #168388;background:#111;padding:8px"></div><div class="etitle">MONOPOLY ALERT</div><div class="etext">'+(sub||'')+'</div></div>';}
+   579→function cardFace(c){if(c.id==='crackdown')return monopolyAlertFace(c.text);return '<div class="eventcard"><div class="eicon">'+c.icon+'</div><div class="etitle">'+c.title+'</div><div class="etext">'+c.text+'</div></div>'}
+   580→/* ---- floating FX: visible on every screen, driven purely by synced state ---- */
+   581→function fx(x,y,t,c,big){if(Net.role!=='host'||!S)return;S.fx.push({id:++fxSeq,x,y,t,c,b:big?1:0});if(S.fx.length>40)S.fx.shift()}
+   582→function fxAt(pi,t,c){if(!S||!S.players[pi])return;const n=NMAP[S.players[pi].pos];if(n)fx(n.x,n.y-64,t,c)}
+   583→function setMood(k,headline){
+   584→ if(!S)return;
+   585→ const changed=S.mood!==k;
+   586→ S.mood=k;S.wire=headline;
+   587→ if(changed){log('🌡️ THE MOOD SHIFTS — '+MOODS[k].label+' ('+MOODS[k].desc+').');fx(1200,720,MOODS[k].label.split(': ')[1]||k,MOODS[k].color,true)}
+   588→}
+   589→function giveIntel(i,n,why){if(!S||!S.players[i]||n<=0)return;S.players[i].intel+=n;log('🛈 '+pname(i)+' +'+n+' Intel'+(why?' — '+why:'')+'.');fxAt(i,'🛈+'+n,'#55c1ff')}
+   590→function gain(i,amt,why){S.players[i].money+=amt;log('💰 '+pname(i)+' gains $'+amt+(why?' — '+why:'')+'.');fxAt(i,'+$'+amt,'#7fe08d')}
+   591→function payVoid(i,amt,why){const p=S.players[i];const real=Math.min(p.money,amt);p.money-=real;log('💸 '+pname(i)+' loses $'+real+' — '+why+'.');fxAt(i,'−$'+real,'#ff6b5e')}
+   592→function payTo(i,amt,to,why){const p=S.players[i];const real=Math.min(p.money,amt);p.money-=real;S.players[to].money+=real;log('💸 '+pname(i)+' pays $'+real+' to '+pname(to)+' — '+why+'.');fxAt(i,'−$'+real,'#ff6b5e');fxAt(to,'+$'+real,'#7fe08d')}
+   593→function payFee(i,amt,why){const p=S.players[i];const real=Math.min(p.money,amt);p.money-=real;log('💸 '+pname(i)+' pays $'+real+' — '+why+'.');fxAt(i,'−$'+real,'#ff6b5e')}
+   594→function addCortisol(i,n,why,ev){
+   595→ if(!n)return;
+   596→ if(ev&&n>0&&(S.owner.bess===i||S.owner.jim===i)){n-=1;if(n<=0){log('📺 Big Bessent / The Jim buries the story — '+pname(i)+' takes no Cortisol at all.');return}log('📺 Breaking news softens the story — '+pname(i)+' takes only +'+n+' Cortisol.')}
+   597→ if(ev&&n>0){const h=S.owner.herald;if(h!=null&&h!==i)giveIntel(h,1,'THE JIM REAPER files the cortisol')}
+   598→ const p=S.players[i];p.cortisol=Math.max(0,Math.min(10,p.cortisol+n));
+   599→ log('🔥 '+pname(i)+(n>0?' +'+n:' '+n)+' Cortisol (now '+p.cortisol+')'+(why?' — '+why:'')+'.');
+   600→ fxAt(i,(n>0?'🔥+'+n:'🔥'+n),'#ffa94d');
+   601→ if(p.cortisol>=8)raid(i);
+   602→}
+   603→/* The raid is the one thing on this board that can end a run: two assets seized,
+   604→   the books fined, the intel network burned and a wasted turn under caution. */
+   605→function raid(i){
+   606→ const p=S.players[i];
+   607→ const owned=NODES.filter(n=>S.owner[n.id]===i).sort((a,b)=>b.income-a.income||b.cost-a.cost);
+   608→ const seized=owned.slice(0,2);
+   609→ seized.forEach(n=>{delete S.owner[n.id];delete S.bugs[n.id];fx(n.x,n.y-70,'🚨 SEIZED','#ff6b5e')});
+   610→ if(seized.length)log('🚨 REGULATOR RAID! '+pname(i)+' is stripped of '+seized.map(n=>n.name.join(' ')).join(' and ')+' — cameras everywhere.');
+   611→ else log('🚨 REGULATOR RAID! '+pname(i)+' owns nothing worth seizing — the regulators take it out of the accounts instead.');
+   612→ Object.keys(S.bugs).forEach(id=>{if(S.bugs[id]===i)delete S.bugs[id]});
+   613→ const fine=Math.max(5,Math.floor(p.money*0.3));
+   614→ payVoid(i,fine,'the enforcement penalty');
+   615→ if(p.intel>1){const lost=p.intel-1;p.intel=1;log('🛈 '+pname(i)+' loses '+lost+' Intel — every contact stops answering.');fxAt(i,'🛈−'+lost,'#55c1ff')}
+   616→ p.raided=1;
+   617→ p.cortisol=0;log('🚨 '+pname(i)+' is under caution: Cortisol resets to 0, and next turn brings no income and a single step.');
+   618→ fxAt(i,'🚨 RAIDED','#ff6b5e',true);
+   619→ S.players.forEach((pl,j)=>{if(S.owner.hedge===j)gain(j,3,'somebody was short the whole time');if(S.owner.group===j)giveIntel(j,1,'the group photo pays')});
+   620→ announceAll('🚨 REGULATOR RAID',
+   621→  '<div class="eventcard"><div class="eicon">🚨</div><div class="etitle">'+esc(p.name)+' IS RAIDED</div>'
+   622→  +'<div class="etext">Cameras on the driveway. Boxes out the front door.</div></div>'
+   623→  +'<ul><li>'+(seized.length?'Seized: <b>'+seized.map(n=>esc(n.name.join(' '))).join('</b> and <b>')+'</b>':'Nothing worth seizing — the accounts took it instead')+'</li>'
+   624→  +'<li>Fine of <b>$'+fine+'</b>, Intel burned down to 1, every planted bug pulled</li>'
+   625→  +'<li>Cortisol resets to <b>0</b>; next turn brings no income and a single step</li></ul>');
+   626→}
+   627→
+   628→/* ACCC concentration: more than 2 holdings in one industry (charts excluded). */
+   629→const INDUSTRIES=[
+   630→ {id:'bank',name:'BANKING',pick:n=>n.type==='BANK'},
+   631→ {id:'regulator',name:'REGULATORS',pick:n=>n.type==='REGULATOR'},
+   632→ {id:'corporate',name:'CORPORATES',pick:n=>n.type==='CORPORATE'},
+   633→ {id:'commodity',name:'COMMODITIES',pick:n=>n.type==='COMMODITY'},
+   634→ {id:'media',name:'MEDIA',pick:n=>n.type==='MEDIA'},
+   635→ {id:'oil',name:'OIL',ids:['oil','oilgraph','barrels','tanker','petronas']},
+   636→ {id:'coal',name:'COAL',ids:['coal','train','port','bhp','watson']},
+   637→ {id:'jtportal',name:'JTPORTAL',ids:['jt','press','iface']},
+   638→ {id:'chalmers',name:'JIM CHALMERS',ids:['chalmers','jim','herald']},
+   639→ {id:'bessent',name:'BIG BESSENT',ids:['bessent','bess','bond']},
+   640→ {id:'monetary',name:'MONETARY POLICY',ids:['mpc','rba','cash','bullock','infl']}
+   641→];
+   642→function industryNodes(g){
+   643→ if(g.ids)return g.ids.map(id=>NMAP[id]).filter(Boolean);
+   644→ return NODES.filter(g.pick);
+   645→}
+   646→function ownedInIndustry(pi,g){return industryNodes(g).filter(n=>S.owner[n.id]===pi)}
+   647→function concentratedIndustries(pi){
+   648→ return INDUSTRIES.map(g=>{const owned=ownedInIndustry(pi,g);return {g,owned,n:owned.length}}).filter(x=>x.n>2);
+   649→}
+   650→function acccInvestigate(pi){
+   651→ if(!S||S.over)return;
+   652→ const hits=concentratedIndustries(pi);
+   653→ if(!hits.length)return;
+   654→ if(Math.random()>=1/3)return
+   655→ hits.sort((a,b)=>b.n-a.n||a.g.name.localeCompare(b.g.name));
+   656→ const hit=hits[0];
+   657→ hit.owned.forEach(n=>{delete S.owner[n.id];delete S.bugs[n.id];fx(n.x,n.y-70,'🧐 DIVESTED','#55c1ff')});
+   658→ log('🧐 MONOPOLY ALERT! '+pname(pi)+' is forced to dump the whole '+hit.g.name+' book ('+hit.owned.map(n=>n.name.join(' ')).join(', ')+').');
+   659→ fxAt(pi,'MONOPOLY ALERT','#55c1ff',true);
+   660→ announceAll('MONOPOLY ALERT',
+   661→  monopolyAlertFace(esc(S.players[pi].name)+' held more than two '+esc(hit.g.name)+' properties.')
+   662→  +'<p>The ACCC breaks up the book. Divested: <b>'+hit.owned.map(n=>esc(n.name.join(' '))).join('</b>, <b>')+'</b>.</p>');
+   663→}
+   664→/* MADE moves money off the rest of the table, not out of thin air. */
+   665→function madePay(){
+   666→ const m=S.owner.made;
+   667→ if(m==null)return;
+   668→ gain(m,10,'MADE pays out — nobody knows why');
+   669→ giveIntel(m,1,'the purple graphic tells you something');
+   670→ S.players.forEach((pl,j)=>{
+   671→  if(j===m)return;
+   672→  payVoid(j,3,'the purple graphic takes its cut');
+   673→  addCortisol(j,1,'nobody can explain where the money went');
+   674→ });
+   675→}
+   676→
+   677→/* ============ NET: state sync & prompts (host-authoritative) ============ */
+   678→const LOG_TAIL=40,CHAT_TAIL=25,STATE_MIN_GAP=40;
+   679→/* The wire carries only what changed: the deck stays home and the record/chat
+   680→   travel as tails the guests splice onto what they already hold. */
+   681→function pubState(full){
+   682→ const c={};
+   683→ for(const k in S){if(k==='deck'||k==='log'||k==='chat')continue;c[k]=S[k]}
+   684→ const out=JSON.parse(JSON.stringify(c));
+   685→ out.deckCount=S.deck.length;
+   686→ const lt=full?S.log.slice():S.log.slice(-LOG_TAIL);
+   687→ const ct=full?S.chat.slice():S.chat.slice(-CHAT_TAIL);
+   688→ out.log=lt;out.chat=ct;out.logN=S.logN|0;out.chatN=S.chatN|0;
+   689→ return out;
+   690→}
+   691→function mergeTail(prev,prevN,tail,totalN){
+   692→ if(!prev||prevN==null)return tail.slice();
+   693→ const start=totalN-tail.length;
+   694→ const keep=prev.length-(prevN-start);
+   695→ if(!(keep>=0&&keep<=prev.length))return tail.slice();
+   696→ return prev.slice(0,keep).concat(tail);
+   697→}
+   698→function adoptState(ns){
+   699→ if(S){
+   700→  ns.log=mergeTail(S.log,S.logN|0,ns.log||[],ns.logN|0);
+   701→  ns.chat=mergeTail(S.chat,S.chatN|0,ns.chat||[],ns.chatN|0);
+   702→ }
+   703→ if(ns.log.length>250)ns.log=ns.log.slice(-250);
+   704→ if(ns.chat.length>60)ns.chat=ns.chat.slice(-60);
+   705→ S=ns;
+   706→}
+   707→function sendAll(msg){for(let i=0;i<Net.conns.length;i++){if(i===Net.myIdx)continue;const c=Net.conns[i];if(c&&c.open){try{c.send(msg)}catch(e){}}}}
+   708→function sendTo(pi,msg){if(pi===Net.myIdx)return;const c=Net.conns[pi];if(c&&c.open){try{c.send(msg)}catch(e){}}}
+   709→/* State goes out coalesced: a single turn touches the state dozens of times and
+   710→   guests only need the result, not every intermediate frame. */
+   711→let stateTimer=null,stateLastSend=0;
+   712→function flushState(){
+   713→ if(stateTimer){clearTimeout(stateTimer);stateTimer=null}
+   714→ if(!S||Net.role!=='host')return;
+   715→ stateLastSend=Date.now();
+   716→ sendAll({t:'state',s:pubState(false)});
+   717→}
+   718→function sendState(now){
+   719→ if(Net.role!=='host'||!S)return;
+   720→ if(now){flushState();return}
+   721→ if(stateTimer)return;
+   722→ stateTimer=setTimeout(flushState,Math.max(0,STATE_MIN_GAP-(Date.now()-stateLastSend)));
+   723→}
+   724→let renderRaf=0;
+   725→function scheduleRender(){
+   726→ if(renderRaf)return;
+   727→ renderRaf=requestAnimationFrame(()=>{renderRaf=0;render()});
+   728→}
+   729→function sync(now){if(Net.role==='host'){scheduleRender();sendState(now)}else scheduleRender()}
+   730→function sysTo(pi,msg){if(Net.role!=='host')return;if(pi===Net.myIdx){toast(msg);return}sendTo(pi,{t:'sys',msg})}
+   731→function askPlayer(pi,opt){return new Promise(res=>{
+   732→ if(Net.role!=='host'){modal(opt).then(res);return}
+   733→ const def=opt.def!==undefined?opt.def:(opt.options&&opt.options[0]?opt.options[0].v:undefined);
+   734→ if(pi===Net.myIdx){modal(opt).then(res);return}
+   735→ const c=Net.conns[pi];
+   736→ if(!c||!c.open){res(def);return}
+   737→ const pid=++Net.promptSeq;
+   738→ Net.pendingPrompts.set(pid,{res,def,pi});
+   739→ flushState();
+   740→ sendTo(pi,{t:'prompt',pid,title:opt.title,html:opt.html,body:opt.body,options:opt.options});
+   741→ setTimeout(()=>{const p=Net.pendingPrompts.get(pid);if(p){Net.pendingPrompts.delete(pid);res(p.def)}},opt.timeout||45000);
+   742→})}
+   743→/* A table-wide bulletin nobody has to wait on: the raid is news, not a turn. */
+   744→function announceAll(title,html){
+   745→ if(Net.role!=='host')return;
+   746→ const eid=++Net.evSeq;
+   747→ flushState();
+   748→ for(let i=0;i<S.players.length;i++){if(i===Net.myIdx)continue;const c=Net.conns[i];if(c&&c.open)sendTo(i,{t:'event',eid,title,html})}
+   749→ modal({title,html,options:[{label:'Continue',v:1}]});
+   750→}
+   751→async function revealAll(title,html){
+   752→ if(Net.role!=='host'){await modal({title,html,options:[{label:'Continue',v:1}]});return}
+   753→ const eid=++Net.evSeq;const need=new Set();
+   754→ flushState();
+   755→ for(let i=0;i<S.players.length;i++){if(i===Net.myIdx)continue;const c=Net.conns[i];if(c&&c.open){sendTo(i,{t:'event',eid,title,html});need.add(i)}}
+   756→ await modal({title,html,options:[{label:'Continue',v:1}]});
+   757→ /* the table has already seen the card — a short grace, then play moves on */
+   758→ if(need.size){await new Promise(res=>{Net.acks={eid,set:need,res,timer:setTimeout(()=>{if(Net.acks){Net.acks=null;res()}},5000)}})}
+   759→}
+   760→
+   761→/* ================= GAME FLOW (host) ================= */
+   762→function applyLayoutFromState(){
+   763→ if(!S)return;
+   764→ const slot=QUIK_SLOTS[S.quikSlot|0]||QUIK_SLOTS[0];
+   765→ applyQuikSlot(slot);
+   766→}
+   767→function initGame(defs){
+   768→ const quikSlot=Math.floor(Math.random()*QUIK_SLOTS.length);
+   769→ const order=defs.map((_,i)=>i);
+   770→ for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=order[i];order[i]=order[j];order[j]=t}
+   771→ const seated=order.map(i=>defs[i]);
+   772→ if(Net.conns&&Net.conns.length){
+   773→  const hostWas=0;
+   774→  Net.conns=order.map(i=>Net.conns[i]||null);
+   775→  Net.roster=order.map(i=>Net.roster[i]).filter(Boolean);
+   776→  Net.myIdx=order.indexOf(hostWas);
+   777→ }
+   778→ const goal=clampGoal(Net.goal);
+   779→ S={players:seated.map((d,i)=>({name:d.name,color:PCOLORS[i%PCOLORS.length],char:d.char||null,money:15,intel:2,cortisol:0,raided:0,pos:'quik',dc:false})),cur:0,turn:1,phase:'move',steps:3,goal,owner:{},bugs:{},seizeCount:{},deck:shuffle(CARDS.map(c=>c.id)),discard:[],spun:false,audited:false,cooked:false,budgeted:false,extraStep:false,slipped:false,caution:false,dossier:false,jtUsed:false,spinKind:'press',mood:'CALM',wire:'all quiet on the wire… for now',fx:[],over:false,mode:null,log:[],chat:(Net.lobbyChat||[]).slice(-25),logN:0,chatN:0,quikSlot};
+   780→ applyLayoutFromState();
+   781→ Net.started=true;
+   782→ const slot=QUIK_SLOTS[quikSlot];
+   783→ log('🌅 The board is pinned up — '+NODES.length+' exhibits, '+EDGES.length+' threads, '+S.players.length+' at the table.');
+   784→ log('🎲 Seating was shuffled. First to move: '+S.players[0].name+'.');
+   785→ log('⛽ Quikstop opened '+slot.label+' this game. Everyone starts there with $15 and 2 Intel.');
+   786→ log('🏆 WIN CONDITION: $'+goal+' in the bank AND one of every node type ('+WIN_TYPES.join(', ')+'). The host set the target.');
+   787→ $('setup').style.display='none';$('app').style.display='flex';
+   788→ const pub=pubState(true);
+   789→ for(let i=0;i<Net.conns.length;i++){
+   790→  const c=Net.conns[i];
+   791→  if(c&&c.open){try{c.send({t:'begin',s:pub,idx:i})}catch(e){}}
+   792→ }
+   793→ startTurn();
+   794→}
+   795→async function startTurn(){
+   796→ if(!S||S.over)return;
+   797→ log('—— TURN '+S.turn+' · '+pname(S.cur)+' ——');
+   798→ S.phase='move';S.mode=null;S.spun=false;S.audited=false;S.cooked=false;S.budgeted=false;S.pressured=false;S.extraStep=false;S.slipped=false;S.dossier=false;
+   799→ if(S.fx.length>30)S.fx=S.fx.slice(-30);
+   800→ const p=S.players[S.cur];const own=id=>S.owner[id]===S.cur;
+   801→ const underCaution=!!p.raided;S.caution=underCaution;
+   802→ if(underCaution)log('🚨 '+pname(S.cur)+' spends the turn with the regulators — no income and one step only.');
+   803→ else income(S.cur);
+   804→ if(own('rba')&&p.cortisol>0){p.cortisol--;fxAt(S.cur,'🔥−1','#8fbf7f');log('🏛️ Inside the Reserve Bank: −1 Cortisol (now '+p.cortisol+').')}
+   805→ if(own('sat')&&p.cortisol>0){p.cortisol--;fxAt(S.cur,'🔥−1','#8fbf7f');log('🛰️ Hiding out in the dry country: −1 Cortisol (now '+p.cortisol+').')}
+   806→ if(own('whistle'))giveIntel(S.cur,1,'the dossier grows');
+   807→ if(own('bullock'))giveIntel(S.cur,1,'the Governor briefs you');
+   808→ if(own('jt'))giveIntel(S.cur,1,'JTPortal knows things');
+   809→ const jtHolder=own('jt');
+   810→ if(own('mpc'))giveIntel(S.cur,1,'the Competition feeds you data');
+   811→ const charts=NODES.filter(n=>n.type==='CHART'&&S.owner[n.id]===S.cur).length;
+   812→ if(own('school')&&charts>=3)giveIntel(S.cur,1,'the research department delivers');
+   813→ const media=NODES.filter(n=>n.type==='MEDIA'&&S.owner[n.id]===S.cur).length;
+   814→ if(own('news')&&media>=2)giveIntel(S.cur,1,'you read everything');
+   815→ if(S.owner.made!=null&&Math.random()<1/3)madePay();
+   816→ acccInvestigate(S.cur);
+   817→ 
+   818→ const rail=(S.owner.train===S.cur||S.owner.bullet===S.cur)?1:0;
+   819→ S.steps=underCaution?1:3+(S.owner.coal===S.cur?1:0)+rail+(S.owner.asics===S.cur?1:0);
+   820→ p.raided=0;
+   821→ sysTo(S.cur,'👁️ YOUR TURN, '+p.name.toUpperCase());
+   822→ sync(true);
+   823→ if(await winCheck())return;
+   824→ if(jtHolder&&!p.dc)await jtBriefing(S.cur);
+   825→ if(p.dc){log('💤 '+pname(S.cur)+' is away — plays it quiet.');gain(S.cur,1,'away');endOfTurn()}
+   826→}
+   827→/* JTPortal knows what runs tomorrow, and tells whoever holds it. */
+   828→async function jtBriefing(pi){
+   829→ if(!S||S.over)return;
+   830→ if(!S.deck.length){S.deck=shuffle(S.discard.slice());S.discard=[];log('🎴 The rumor deck is reshuffled.')}
+   831→ if(!S.deck.length)return;
+   832→ const c=CARDBYID[S.deck[S.deck.length-1]];
+   833→ log('🌐 JTPortal briefs '+pname(pi)+' on what is coming next.');
+   834→ sync();
+   835→ await askPlayer(pi,{title:'JTPORTAL — “QUITE FRANKLY, HERE IS WHAT HAPPENS NEXT”',html:cardFace(c)+'<p class="fine">The event that lands at the end of your turn — for your eyes only.</p>',options:[{label:'Noted',v:1}],def:1,timeout:25000});
+   836→}
+   837→function income(i){
+   838→ const p=S.players[i];const own=id=>S.owner[id]===i;
+   839→ const owned=NODES.filter(n=>S.owner[n.id]===i);
+   840→ let salary=3;if(own('infl'))salary=4;
+   841→ let holdSum=0;owned.forEach(n=>{let v=n.income;if(n.type==='CHART'&&own('ib'))v*=2;holdSum+=v});
+   842→ const corp=owned.filter(n=>n.type==='CORPORATE').length,bank=owned.filter(n=>n.type==='BANK').length,chart=owned.filter(n=>n.type==='CHART').length,comm=owned.filter(n=>n.type==='COMMODITY').length,reg=owned.filter(n=>n.type==='REGULATOR').length,med=owned.filter(n=>n.type==='MEDIA').length;
+   843→ let syn=0;
+   844→ if(own('citi')&&corp)syn+=corp;
+   845→ if(own('commbank')&&bank>1)syn+=2;
+   846→ if(own('westpac')&&reg)syn+=reg;
+   847→ if(own('anz')&&chart)syn+=chart;
+   848→ if(own('bhp')&&own('train'))syn+=1;
+   849→ if(own('tenyear')&&chart>1)syn+=3*(chart-1);
+   850→ COUNTRY.forEach(c=>{if(own(c)&&own('tenyear'))syn+=1});
+   851→ if(own('mpc')&&own('school')&&own('ib'))syn+=2;
+   852→ if(own('stock')&&(own('term')||own('fox')))syn+=1;
+   853→ if(own('notes')&&bank)syn+=bank;
+   854→ if(own('barrels')&&own('forklift'))syn+=1;
+   855→ if(own('forklift')&&comm)syn+=comm;
+   856→ if(own('market')&&own('quik'))syn+=2;
+   857→ if(own('rock'))syn+=new Set(owned.map(n=>n.type)).size;
+   858→ if(own('bessent')&&bank)syn+=bank;
+   859→ if(own('chalmers')&&reg)syn+=reg;
+   860→ if(own('watson')&&own('coal'))syn+=2;
+   861→ if(own('mpc')&&chart)syn+=chart;
+   862→ /* the market mood pays — or takes */
+   863→ if(S.mood==='BOOM'&&comm>0){syn+=comm;log('📈 BOOM: commodities pay +$1 each (+'+comm+').')}
+   864→ if(S.mood==='FRENZY'&&med>0){syn+=med;log('🗣️ FRENZY: media pays +$1 each (+'+med+').')}
+   865→ if(S.mood==='PANIC'&&bank>0){syn-=bank;log('🚨 PANIC: banks bleed −$1 each (−'+bank+').')}
+   866→ const inc=salary+holdSum+syn;
+   867→ p.money+=inc;
+   868→ log('💵 '+pname(i)+' collects $'+inc+' (salary $'+salary+' + holdings $'+holdSum+' + synergies $'+syn+') — now $'+p.money+'.');
+   869→ fxAt(i,'+$'+inc,'#7fe08d');
+   870→ Object.keys(S.bugs).forEach(nid=>{if(S.bugs[nid]===i&&S.owner[nid]!==i){const amt=(S.owner.wef===i)?2:1;p.money+=amt;log('🐛 Skim from '+NMAP[nid].name.join(' ')+': +$'+amt+'.');fxAt(i,'+$'+amt,'#7fe08d')}});
+   871→}
+   872→async function applyIntent(pi,m){
+   873→ if(!S||S.over||!m||!m.act)return;
+   874→ if(S.cur!==pi){sysTo(pi,'Not your turn.');return}
+   875→ if(Net.lock){sysTo(pi,'⏳ Your previous action is still resolving — please wait a moment.');return} Net.lock=true;clearTimeout(Net.lockTimer);Net.lockTimer=setTimeout(()=>{if(Net.lock){console.error('[BIGCON] stale action lock released');Net.lock=false;Net.lockTimer=null;sync()}},30000);
+   876→ try{
+   877→  const act=m.act,p=S.players[pi];
+   878→  if(act==='move'&&S.phase==='move'){
+   879→   if(S.steps<=0)return;
+   880→   if(!(ADJ[p.pos]||[]).includes(m.id)){sysTo(pi,'You can only move along the red threads.');return}
+   881→   await doMove(pi,m.id);
+   882→  }
+   883→  else if(act==='favor'&&S.phase==='move'&&!S.extraStep&&p.intel>=1){
+   884→   p.intel--;S.extraStep=true;S.steps++;
+   885→   log('🤝 '+pname(pi)+' cashes a favor — +1 step this turn.');
+   886→   fxAt(pi,'🛈−1 · +1 step','#55c1ff');sync();
+   887→  }
+   888→  else if(act==='endmove'&&S.phase==='move'){await endMovement()}
+   889→  else if(act==='flymode'&&S.phase==='move'&&!S.mode&&S.owner.qantas===pi&&p.money>=3){S.mode='fly';sync()}
+   890→  else if(act==='slip'&&S.phase==='move'&&!S.slipped&&S.owner.f1===pi&&p.money>=2){
+   891→   p.money-=2;S.slipped=true;S.steps+=2;
+   892→   log('🏎️ '+pname(pi)+' takes the slipstream — +2 steps and $2 off the next seizure.');
+   893→   fxAt(pi,'−$2 · +2 steps','#f5c542');sync();
+   894→  }
+   895→  else if(act==='fly'&&S.phase==='move'&&S.mode==='fly'){await doFly(pi,m.id)}
+   896→  else if(act==='cancel'){S.mode=null;sync()}
+   897→  else if(act==='seize'&&S.phase==='action'&&!S.mode){await doSeize(pi)}
+   898→  else if(act==='bugmode'&&S.phase==='action'&&!S.mode){S.mode='bug';sync()}
+   899→  else if(act==='bug'&&S.phase==='action'&&S.mode==='bug'){await doBug(pi,m.id)}
+
+[showing lines 400-899 of 2048; use offset=900 with limit to continue reading]

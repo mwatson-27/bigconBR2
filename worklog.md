@@ -1,0 +1,19 @@
+# Worklog
+
+---
+Task ID: 1
+Agent: Super Z (main agent)
+Task: Build a functional multiplayer FPS battle royale based on github.com/waxmotson/bigcon (an Australian financial-satire board game), keeping the same visual identity/vibe, retaining board-game mechanics, and reusing PeerJS (the repo's multiplayer library).
+
+Work Log:
+- Cloned and analyzed waxmotson/bigcon (v1.5 board game): extracted visual identity (teal #168388 / #1d201f / #111413, Times New Roman mastheads, border-radius:0, evidence-board fiction — exhibits/THE RECORD/THE WIRE/THE SYNDICATE), game mechanics (Money/Intel/Cortisol triad, 70 nodes across 7 types, income quarters, 24-card rumor deck, mood system, raid-at-8-cortisol, ACCC, MADE 33% payout, win = money goal + 1 of each type), and the PeerJS host-authoritative architecture (buzzword room codes, same ICE config, playerId reconnection).
+- Installed three + peerjs; copied & compressed the repo's character faces, logo GIF, and 55 exhibit images into public/.
+- Built the game in src/game/: types.ts (shared types + wire protocol), data.ts (28 exhibits with board prices/incomes, 6 satirical weapons, all 24 event cards, 8 characters, 18 buzzword room codes), audio.ts (WebAudio synth SFX), net.ts (PeerJS host-authoritative star topology with reconnection + mid-game seat reclaim), sim.ts (host simulation: income quarters every 12s, events every 24s with 4s JT-deny window, seizures/hostile takeovers with 2^N inflation, bugs, abilities, cortisol raids at 8 (strip 2 top exhibits + fine + marked beacon), ACCC divestiture, MADE payouts, THE PANIC shrinking zone, dual win conditions), world.ts (Three.js dark-teal city: dot-grid ground, teal-window skyline, Citi Tower landmark, exhibit pads with corkboard photo billboards, panic wall), fx.ts (tracers, floating +$/🛈/🔥 text, fireballs, raid beacons), engine.ts (pointer-lock FPS controls with drag-look fallback, hitscan combat with falloff/spread/recoil/ADS, E-hold seizure channel, Qantas skydrop + redeploy, oil bombs, pickups, minimap data).
+- Built React UI in src/components/game/: GameShell.tsx (splash → setup → lobby → game state machine, host loop at 20Hz poses + 2Hz snapshots, intent routing, kill feed, event banners, end modal with scoreboard) + game.css (board-game visual identity carried over verbatim).
+- Verified end-to-end with agent-browser in TWO parallel browser sessions over real PeerJS connections: host room creation (buzzword codes), guest join, character picking, 2-player match, skydive, mutual avatar visibility, cross-player combat (guest shot host 100→37→dead), kill rewards (+$5/+2 cortisol), money drop, "last con standing" victory modal on both screens, solo seizure test (QUIKSTOP for $5 +1 cortisol), weapon pickup (THE AUDITOR), income quarters, market events with moods (BOOM/PANIC/FRENZY), event banners, THE RECORD log.
+- Fixed bugs found during verification: host not applying poses locally (couldn't see guests), spawn contamination race (engine now has spawned-flag before transmitting poses), semi-auto weapons never firing, pointer-lock fallback (drag-look) for restrictive environments, pause-menu pointer events.
+
+Stage Summary:
+- Deliverable: THE BIG CON: BATTLE ROYALE — a Next.js 16 + TypeScript + Three.js + PeerJS multiplayer FPS that preserves the board game's identity (colors, fonts, copy tone, exhibit fiction, character faces, room-code system) and its economy (money/intel/cortisol, quarters, events, seizures, raids, win condition), wrapped in battle-royale FPS mechanics (skydrop, loot, shrinking PANIC zone, liquidations, last-con-standing).
+- Files: src/game/{types,data,audio,net,sim,world,fx,engine}.ts, src/components/game/{GameShell.tsx,game.css}, src/app/page.tsx, public/{characters,exhibits,logo.*}.
+- All lint/tsc clean; dev server healthy; two-browser multiplayer verified.
